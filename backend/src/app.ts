@@ -81,6 +81,10 @@ app.get(
       agentId: AGENT_ID,
       software: SOFTWARE_IDENTITY,
       environment: cool.environment,
+      persistence: {
+        backend: store.backendKind,
+        durable: store.backendKind === "redis" || !process.env["VERCEL"],
+      },
       totals: {
         executions: executions.length,
         evidenceRecords: evidence.filter((e) => e.origin === "live").length,
