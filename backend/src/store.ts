@@ -1,17 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { AgentExecution, EvidenceRecordEntry } from "./types.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-// Vercel's filesystem is read-only except /tmp, and /tmp is wiped between
-// cold starts — so on Vercel this store is a per-instance cache, not durable
-// storage (see docs/LIMITATIONS.md). Everywhere else it's a normal on-disk
-// JSON store that survives restarts.
-const DATA_DIR =
-  process.env["AGENTPROOF_DATA_DIR"] ?? (process.env["VERCEL"] ? "/tmp/agentproof-data" : join(__dirname, "..", "data"));
-const EXECUTIONS_FILE = join(DATA_DIR, "executions.json");
-const EVIDENCE_FILE = join(DATA_DIR, "evidence.json");
+import { selectStoreBackend, type StoreBackend } from "./storeBackend.js";
 
 /**
  * A minimal, dependency-free persistence layer for AgentProof's own
@@ -21,38 +9,49 @@ const EVIDENCE_FILE = join(DATA_DIR, "evidence.json");
  * This is deliberately NOT where cryptographic trust lives — that lives
  * inside each stored `Evidence` receipt, which is independently verifiable
  * on its own. This store just makes the console and audit views possible.
+ *
+ * The actual read/write happens through a `StoreBackend` (see
+ * storeBackend.ts) chosen once at startup: on-disk JSON files normally, or
+ * Redis when a Redis integration is attached to the Vercel project — that's
+ * what makes this survive across serverless instances instead of just
+ * caching in one instance's /tmp.
  */
 class JsonStore {
+  private readonly backend: StoreBackend;
   private executions = new Map<string, AgentExecution>();
   private evidence = new Map<string, EvidenceRecordEntry>();
   private loaded = false;
   private writeQueue: Promise<void> = Promise.resolve();
 
-  async load(): Promise<void> {
-    if (this.loaded) return;
-    await mkdir(DATA_DIR, { recursive: true });
-    this.executions = new Map(Object.entries(await this.readJson<Record<string, AgentExecution>>(EXECUTIONS_FILE, {})));
-    this.evidence = new Map(Object.entries(await this.readJson<Record<string, EvidenceRecordEntry>>(EVIDENCE_FILE, {})));
-    this.loaded = true;
+  constructor(backend: StoreBackend) {
+    this.backend = backend;
   }
 
-  private async readJson<T>(path: string, fallback: T): Promise<T> {
-    try {
-      const raw = await readFile(path, "utf8");
-      return JSON.parse(raw) as T;
-    } catch {
-      return fallback;
-    }
+  /** "file" (default, per-instance on Vercel unless AGENTPROOF_DATA_DIR points
+   *  somewhere durable) or "redis" (shared, durable — see storeBackend.ts). */
+  get backendKind(): StoreBackend["kind"] {
+    return this.backend.kind;
+  }
+
+  async load(): Promise<void> {
+    if (this.loaded) return;
+    this.executions = new Map(
+      Object.entries(await this.backend.readJson<Record<string, AgentExecution>>("executions", {})),
+    );
+    this.evidence = new Map(
+      Object.entries(await this.backend.readJson<Record<string, EvidenceRecordEntry>>("evidence", {})),
+    );
+    this.loaded = true;
   }
 
   private persist(): void {
     this.writeQueue = this.writeQueue
-      .then(() => writeFile(EXECUTIONS_FILE, JSON.stringify(Object.fromEntries(this.executions), null, 2)))
-      .then(() => writeFile(EVIDENCE_FILE, JSON.stringify(Object.fromEntries(this.evidence), null, 2)))
+      .then(() => this.backend.writeJson("executions", Object.fromEntries(this.executions)))
+      .then(() => this.backend.writeJson("evidence", Object.fromEntries(this.evidence)))
       .catch((error) => {
         // Persistence failures never take the API down mid-response; the in-memory
         // state (and thus the running demo) stays authoritative for this process.
-        console.error("[store] failed to persist to disk:", error);
+        console.error("[store] failed to persist:", error);
       });
   }
 
@@ -87,4 +86,4 @@ class JsonStore {
   }
 }
 
-export const store = new JsonStore();
+export const store = new JsonStore(selectStoreBackend());
