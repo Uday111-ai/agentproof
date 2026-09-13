@@ -1,0 +1,28 @@
+{
+  "name": "agentproof-backend",
+  "version": "1.0.0",
+  "description": "AgentProof API — agent execution, CooL evidence lifecycle, verification, audit.",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "test": "node --import tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "cool-nwc": "file:../vendor/cool-nwc-3.0.0.tgz",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "ulid": "^2.3.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

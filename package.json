@@ -1,0 +1,24 @@
+{
+  "name": "agentproof",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AgentProof — cryptographic accountability for autonomous AI, built on the CooL SDK.",
+  "workspaces": ["backend", "frontend"],
+  "scripts": {
+    "install:all": "npm install",
+    "build": "npm run build --workspace backend && npm run build --workspace frontend",
+    "test": "npm test --workspace backend",
+    "dev:backend": "npm run dev --workspace backend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "dev": "npm run dev --workspace backend & npm run dev --workspace frontend & wait",
+    "start:backend": "npm start --workspace backend",
+    "vercel-build": "npm run build --workspace backend && npm run build --workspace frontend"
+  },
+  "dependencies": {
+    "cool-nwc": "file:./vendor/cool-nwc-3.0.0.tgz",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "ulid": "^2.3.0",
+    "zod": "^3.24.1"
+  }
+}
