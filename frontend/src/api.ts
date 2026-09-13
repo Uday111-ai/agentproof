@@ -129,6 +129,10 @@ export interface AgentConsoleSummary {
     instanceId: string;
     hardware: boolean;
   };
+  persistence: {
+    backend: "file" | "redis";
+    durable: boolean;
+  };
   totals: {
     executions: number;
     evidenceRecords: number;
