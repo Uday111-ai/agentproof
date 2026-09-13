@@ -75,6 +75,14 @@ export function ConsoleScreen({ onNavigate }: { onNavigate: (s: Screen) => void 
               <dd>{agent.environment.instanceId}</dd>
               <dt>Hardware-backed</dt>
               <dd>{agent.environment.hardware ? "yes" : "no — simulator (see docs/LIMITATIONS.md)"}</dd>
+              <dt>Data persistence</dt>
+              <dd>
+                {agent.persistence.backend === "redis"
+                  ? "redis — durable across deployments"
+                  : agent.persistence.durable
+                    ? "local JSON files — durable on this host"
+                    : "local JSON files — per-instance only on Vercel, not durable (attach a Redis integration)"}
+              </dd>
             </dl>
           </div>
 
